@@ -51,21 +51,14 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
 model = joblib.load('static/face_recognition_model.pkl')
 
 class FaceDetectionProcessor(VideoTransformerBase):
+    class VideoProcessor(VideoProcessorBase):
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.model = joblib.load('static/face_recognition_model.pkl')
-        self.processed_frame = None
 
-    def identify_face(self, face_array):
-        # Your face identification logic here
-        # ...
-
-    def transform(self, frame):
-        # Convert the frame to numpy array
-        frm = frame.to_ndarray(format="bgr24")
-
+    def process_frame(self, frame):
         # Convert the frame to grayscale for face detection
-        gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Detect faces in the frame
         faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
@@ -74,16 +67,23 @@ class FaceDetectionProcessor(VideoTransformerBase):
         for (x, y, w, h) in faces:
             face = cv2.resize(gray[y:y + h, x:x + w], (50, 50))
             identified_person = self.identify_face(face.reshape(1, -1))
-
+            
             # Draw rectangle around the face
-            cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            
             # Display ID and Name on the frame
-            cv2.putText(frm, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
+            cv2.putText(frame, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-        self.processed_frame = frm  # Store the processed frame
-        return av.VideoFrame.from_ndarray(frm, format='bgr24')
+        return frame
+    def identify_face(self, face_array):
+        # Assuming you have a KNeighborsClassifier model trained and loaded
+        predicted_label = self.model.predict(face_array.reshape(1, -1))[0]
+
+        # Extract user ID and Name from the predicted label
+        user_id, user_name = predicted_label.split('_')
+
+        return user_name, user_id
 
     
 
