@@ -8,6 +8,7 @@ import pandas as pd
 import joblib
 from streamlit_webrtc import VideoTransformerBase, webrtc_streamer, WebRtcMode
 from streamlit_webrtc import webrtc_streamer, RTCConfiguration
+import av
 
 hide_github_link_style = """
     <style>
@@ -49,11 +50,15 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
 # Load the face recognition model
 model = joblib.load('static/face_recognition_model.pkl')
 
-class VideoProcessor:
+class FaceDetectionProcessor(VideoTransformerBase):
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.model = joblib.load('static/face_recognition_model.pkl')
         self.processed_frame = None
+
+    def identify_face(self, face_array):
+        # Your face identification logic here
+        # ...
 
     def transform(self, frame):
         # Convert the frame to numpy array
@@ -77,6 +82,7 @@ class VideoProcessor:
             cv2.putText(frm, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
+        self.processed_frame = frm  # Store the processed frame
         return av.VideoFrame.from_ndarray(frm, format='bgr24')
 
     
@@ -158,7 +164,7 @@ def take_attendance_page():
 
     webrtc_ctx = webrtc_streamer(
         key="webcam",
-        video_processor_factory=VideoProcessor,
+        video_processor_factory=FaceDetectionProcessor,
         mode=WebRtcMode.SENDRECV,
         rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
     )
