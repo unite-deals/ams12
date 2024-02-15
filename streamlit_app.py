@@ -200,11 +200,13 @@ def add_student_page():
     i = 0
 
     webrtc_ctx = webrtc_streamer(
-    key="video",
+    key="video-sendonly",
     mode=WebRtcMode.SENDONLY,
-    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+    rtc_configuration={"iceServers": get_ice_servers()},
     media_stream_constraints={"video": True},
+    video_receiver_size=10  # Set a larger receiver size, adjust as needed
 )
+
     try:
         while i < 10:
             if webrtc_ctx.video_receiver:
