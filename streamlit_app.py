@@ -47,6 +47,20 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
     with open(f'Attendance/Attendance-{datetoday}.csv', 'w') as f:
         f.write('Name,Roll,Time')
 
+class FaceDetectionProcessor(VideoProcessorBase):
+    def __init__(self):
+        self.face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+
+    def recv(self, frame):
+        img_rgb = cv2.cvtColor(frame.to_ndarray(format="bgr24"), cv2.COLOR_BGR2RGB)
+        gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+        faces = self.face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+        for (x, y, w, h) in faces:
+            cv2.rectangle(img_rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        return cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+
 def set_timezone():
     current_local_time = datetime.now()
     timezone_js = """
@@ -159,33 +173,20 @@ def take_attendance_page():
         st.warning("There is no trained model in the static folder. Please add a new face to continue.")
         return
 
-    st.write("## Taking Attendance")
+    st.write("## Taking Attendance from Live Video Streaming")
 
-    img_file_buffer = st.camera_input("Take a picture")
+    webrtc_ctx = webrtc_streamer(
+        key="video",
+        mode=WebRtcMode.SENDRECV,
+        video_processor_factory=FaceDetectionProcessor,
+        async_processing=True,
+    )
 
-    if img_file_buffer is not None:
-        bytes_data = img_file_buffer.getvalue()
+    if webrtc_ctx.video_receiver:
+        st.video(webrtc_ctx.video_receiver)
+    else:
+        st.warning("Failed to create video receiver. Please check your webcam connection.")
 
-        # convert image from opened file to np.array
-        image_array = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-        image_array_copy = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-
-        # Convert the frame to grayscale
-        gray = cv2.cvtColor(image_array_copy, cv2.COLOR_BGR2GRAY)
-
-        # Detect faces in the grayscale frame
-        faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-        # Draw rectangles around the detected faces
-        for (x, y, w, h) in faces:
-            cv2.rectangle(image_array_copy, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            face = cv2.resize(image_array_copy[y:y + h, x:x + w], (50, 50))
-            identified_person = identify_face(face.reshape(1, -1))[0]
-            add_attendance(identified_person)
-            cv2.putText(image_array_copy, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
-
-        # Display the resulting frame
-        st.image(image_array_copy, channels="BGR", use_column_width=True)
 
 def add_student_page():
     st.title("Capture Images for New Student")
