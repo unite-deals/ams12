@@ -199,18 +199,18 @@ def home_page():
 
 
 def take_attendance_page():
-        if 'face_recognition_model.pkl' not in os.listdir('static'):
-        st.warning("There is no trained model in the static folder. Please add a new face to continue.")
-        return
+    if 'face_recognition_model.pkl' not in os.listdir('static'):
+    st.warning("There is no trained model in the static folder. Please add a new face to continue.")
+    return
 
-    st.write("## Taking Attendance from Live Video Streaming")
+st.write("## Taking Attendance from Live Video Streaming")
 
-    webrtc_ctx = webrtc_streamer(
-        key="example",
-        video_processor_factory=FaceDetectionProcessor,
-        mode=WebRtcMode.SENDRECV,
-        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-    )
+webrtc_ctx = webrtc_streamer(
+    key="example",
+    video_processor_factory=FaceDetectionProcessor,
+    mode=WebRtcMode.SENDRECV,
+    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
 
 
 
