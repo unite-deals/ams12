@@ -237,7 +237,7 @@ def add_student_page():
                     cv2.imwrite(os.path.join(userimagefolder, name), image_array[y:y + h, x:x + w])
 
                 # Display the resulting frame
-                st.image(image_array, channels="BGR", use_column_width=True)
+                #st.image(image_array, channels="BGR", use_column_width=True)
 
                 # Increment the counter
                 i += 1
