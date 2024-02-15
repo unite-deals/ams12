@@ -186,63 +186,73 @@ def take_attendance_page():
         st.image(image_array_copy, channels="BGR", use_column_width=True)
 
 def add_student_page():
-    st.title("Capture Images from Live Video Streaming")
-
-    # Define the number of frames to capture for training
-    num_frames_to_capture = 10
-
-    # Initialize variables
-    captured_frames = 0
-    userimagefolder = None
-
-    # Get user information
+    st.title("Capture Images for New Student")
     newusername = st.text_input('Enter new username:')
     newuserid = st.text_input('Enter new user ID:')
-    userimagefolder = 'static/faces/' + newusername + '_' +'ID:'+ str(newuserid)
+    userimagefolder = 'static/faces/' + newusername + '_' + 'ID:' + str(newuserid)
 
     # Check if the user folder already exists
     if not os.path.isdir(userimagefolder):
         os.makedirs(userimagefolder)
-    cap = cv2.VideoCapture(0)
-    while True:
-        # Read a frame from the video stream
-        ret, frame = cap.read()
 
-        # Check if the frame was successfully read
-        if not ret or frame is None:
-            st.warning("Failed to capture frame. Please check your webcam connection.")
-            break
+    i = 0
 
-        # Convert the frame to grayscale
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    webrtc_ctx = webrtc_streamer(
+        key="video",
+        mode=WebRtcMode.SENDONLY,
+        audio=False,
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+        media_stream_constraints={"video": True},
+    )
 
-        # Detect faces in the grayscale frame
-        faces = face_detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+    try:
+        while i < 10:
+            if webrtc_ctx.video_receiver:
+                try:
+                    video_frame = webrtc_ctx.video_receiver.get_frame(timeout=1)
+                except queue.Empty:
+                    st.warning("Queue is empty. Abort.")
+                    break
 
-        # Draw rectangles around the detected faces
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 20), 2)
-            cv2.putText(frame, f'Frames Captured: {captured_frames + 1}/{num_frames_to_capture}', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2, cv2.LINE_AA)
+                img_rgb = video_frame.to_ndarray(format="rgb24")
+                image_array = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
 
-            # Save the captured frame
-            name = f'{newusername}_{captured_frames}.jpg'
-            cv2.imwrite(os.path.join(userimagefolder, name), frame[y:y + h, x:x + w])
+                # Convert the frame to grayscale
+                gray = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
 
-        # Display the resulting frame
-        st.image(frame, channels="BGR", use_column_width=True)
+                # Detect faces in the grayscale frame
+                faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
-        # Increment the captured_frames counter
-        captured_frames += 1
+                # Draw rectangles around the detected faces
+                for (x, y, w, h) in faces:
+                    cv2.rectangle(image_array, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.putText(image_array, f'Images Captured: {i + 1}/10', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                                (255, 0, 20), 2, cv2.LINE_AA)
 
-        # Sleep for a short duration to prevent capturing too quickly
-        time.sleep(1)
-        if captured_frames >= num_frames_to_capture:
-                break
-    st.success("Frames Captured. Training the model...")
+                    # Save the captured image
+                    name = f'{newusername}_{i}.jpg'
+                    cv2.imwrite(os.path.join(userimagefolder, name), image_array[y:y + h, x:x + w])
 
-    # Train the model after capturing frames
+                # Display the resulting frame
+                st.image(image_array, channels="BGR", use_column_width=True)
+
+                # Increment the counter
+                i += 1
+
+            # Sleep for a short duration to prevent capturing too quickly
+            time.sleep(1)
+
+    except Exception as e:
+        st.warning(f"An error occurred: {e}")
+
+    finally:
+        # Release the VideoCapture object
+        cap.release()
+
+    # Train the model after capturing images
     train_model()
 
-    st.success("Training complete.")
+    st.success("Images Captured. Training the model...")
+    st.success("Training complete. New student added.")
 if __name__ == "__main__":
     main()
