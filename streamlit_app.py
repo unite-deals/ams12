@@ -46,7 +46,7 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
         f.write('Name,Roll,Time')
 
 
-lass FaceDetectionProcessor(VideoProcessorBase):
+class FaceDetectionProcessor(VideoProcessorBase):
     def __init__(self):
         self.userimagefolder = None
         self.capture_count = 0
