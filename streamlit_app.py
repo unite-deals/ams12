@@ -186,7 +186,7 @@ def take_attendance_page():
         st.image(image_array_copy, channels="BGR", use_column_width=True)
 
 def add_student_page():
-     st.title("Capture Images from Live Video Streaming")
+    st.title("Capture Images from Live Video Streaming")
 
     # Define the number of frames to capture for training
     num_frames_to_capture = 10
