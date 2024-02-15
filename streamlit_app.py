@@ -208,6 +208,11 @@ def add_student_page():
         # Read a frame from the video stream
         ret, frame = cap.read()
 
+        # Check if the frame was successfully read
+        if not ret or frame is None:
+            st.warning("Failed to capture frame. Please check your webcam connection.")
+            break
+
         # Convert the frame to grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
