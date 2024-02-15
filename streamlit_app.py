@@ -198,7 +198,7 @@ def add_student_page():
         os.makedirs(userimagefolder)
 
     i = 0
-
+    image_place = st.empty()
     webrtc_ctx = webrtc_streamer(
     key="video-sendonly",
     mode=WebRtcMode.SENDONLY,
@@ -217,6 +217,7 @@ def add_student_page():
                     break
 
                 img_rgb = video_frame.to_ndarray(format="rgb24")
+                image_place.image(img_rgb)
                 image_array = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
 
                 # Convert the frame to grayscale
