@@ -46,7 +46,7 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
         f.write('Name,Roll,Time')
 
 
-class FaceDetectionProcessor(VideoProcessorBase):
+lass FaceDetectionProcessor(VideoProcessorBase):
     def __init__(self):
         self.userimagefolder = None
         self.capture_count = 0
@@ -62,13 +62,24 @@ class FaceDetectionProcessor(VideoProcessorBase):
             add_attendance(identified_person)
             cv2.putText(frame, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
 
+        # Update attendance if a face is detected
+        if len(faces) > 0:
+            self.capture_count += 1
+            if self.capture_count == 10:
+                self.capture_count = 0
+                self.update_attendance(identified_person)
+
         return frame
 
-    def on_receive(self, frame: np.ndarray, frame_metadata: dict):
-        if self.userimagefolder is not None and self.capture_count < 10:
-            self.capture_count += 1
-            return self.detect_faces(frame)
-        return frame
+    def update_attendance(self, name):
+        username = name.split('_')[0]
+        userid = name.split('_')[1]
+        current_time = datetime.now().strftime("%H:%M:%S")
+
+        df = pd.read_csv(f'Attendance/Attendance-{datetoday}.csv')
+        if str(userid) not in list(df['Roll']):
+            with open(f'Attendance/Attendance-{datetoday}.csv', 'a') as f:
+                f.write(f'\n{username},{userid},{current_time}')
 
 
 def set_timezone():
@@ -188,7 +199,7 @@ def home_page():
 
 
 def take_attendance_page():
-    if 'face_recognition_model.pkl' not in os.listdir('static'):
+        if 'face_recognition_model.pkl' not in os.listdir('static'):
         st.warning("There is no trained model in the static folder. Please add a new face to continue.")
         return
 
@@ -200,6 +211,7 @@ def take_attendance_page():
         mode=WebRtcMode.SENDRECV,
         rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
     )
+
 
 
 def add_student_page():
