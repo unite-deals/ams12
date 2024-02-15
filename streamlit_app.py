@@ -157,7 +157,7 @@ def take_attendance_page():
 
     webrtc_ctx = webrtc_streamer(
         key="webcam",
-        video_processor_factory=FaceDetectionProcessor,
+        video_processor_factory=VideoProcessor,
         mode=WebRtcMode.SENDRECV,
         rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
     )
