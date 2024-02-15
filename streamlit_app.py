@@ -160,7 +160,23 @@ def take_attendance_page():
             {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
         )
     )
+    if webrtc_ctx.video_processor:
+        frame = webrtc_ctx.video_processor.process_frame(webrtc_ctx.image)
 
+        # Convert the frame to grayscale for face detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Detect faces in the grayscale frame
+        faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+        # Draw rectangles around the detected faces and update attendance
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            face = cv2.resize(frame[y:y + h, x:x + w], (50, 50))
+            identified_person = identify_face(face.reshape(1, -1))[0]
+            add_attendance(identified_person)
+            cv2.putText(frame, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
+            
 def add_student_page():
     st.title("Capture Images 10 various poses")
     newusername = st.text_input('Enter new username:')
