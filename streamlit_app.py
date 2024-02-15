@@ -63,7 +63,8 @@ class VideoProcessor:
             face = cv2.resize(frm[y:y + h, x:x + w], (50, 50))
             identified_person = identify_face(face.reshape(1, -1))[0]
             add_attendance(identified_person)
-            cv2.putText(frm, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
+            cv2.putText(frm, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
         return av.VideoFrame.from_ndarray(frm, format='bgr24')
 
     
