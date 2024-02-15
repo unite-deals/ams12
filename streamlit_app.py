@@ -6,7 +6,7 @@ from datetime import date, datetime
 from sklearn.neighbors import KNeighborsClassifier
 import pandas as pd
 import joblib
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode
+from streamlit_webrtc import VideoTransformerBase, webrtc_streamer, WebRtcMode
 
 hide_github_link_style = """
     <style>
@@ -25,7 +25,7 @@ hide_streamlit_style = """
             footer {visibility: hidden;}
             </style>
             """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
 # Saving Date today in 2 different formats
 datetoday = date.today().strftime("%m_%d_%y")
@@ -45,121 +45,16 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
     with open(f'Attendance/Attendance-{datetoday}.csv', 'w') as f:
         f.write('Name,Roll,Time')
 
-
-class FaceDetectionProcessor(VideoProcessorBase):
-    def __init__(self):
-        self.userimagefolder = None
-        self.capture_count = 0
-
-    def detect_faces(self, frame):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-        
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            face = cv2.resize(frame[y:y + h, x:x + w], (50, 50))
-            identified_person = identify_face(face.reshape(1, -1))[0]
-            add_attendance(identified_person)
-            cv2.putText(frame, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
-
-        # Update attendance if a face is detected
-        if len(faces) > 0:
-            self.capture_count += 1
-            if self.capture_count == 10:
-                self.capture_count = 0
-                self.update_attendance(identified_person)
-
-        return frame
-
-    def update_attendance(self, name):
-        username = name.split('_')[0]
-        userid = name.split('_')[1]
-        current_time = datetime.now().strftime("%H:%M:%S")
-
-        df = pd.read_csv(f'Attendance/Attendance-{datetoday}.csv')
-        if str(userid) not in list(df['Roll']):
-            with open(f'Attendance/Attendance-{datetoday}.csv', 'a') as f:
-                f.write(f'\n{username},{userid},{current_time}')
-
-
-def set_timezone():
-    current_local_time = datetime.now()
-    timezone_js = """
-        <script>
-            var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            var data = { timezone: timezone };
-            fetch("/set_timezone", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(data)
-            });
-        </script>
-    """
-    st.markdown(timezone_js, unsafe_allow_html=True)
-
+# Load the face recognition model
+model = joblib.load('static/face_recognition_model.pkl')
 
 # get a number of total registered users
 def totalreg():
     return len(os.listdir('static/faces'))
 
-
-# extract the face from an image
-def extract_faces(img):
-    if img != []:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        face_points = face_detector.detectMultiScale(gray, 1.3, 5)
-        return face_points
-    else:
-        return []
-
-
 # Identify face using ML model
 def identify_face(facearray):
-    model = joblib.load('static/face_recognition_model.pkl')
-    return model.predict(facearray.reshape(1, -1))
-
-
-# A function that trains the model on all the faces available in the faces folder
-def train_model():
-    faces = []
-    labels = []
-    userlist = os.listdir('static/faces')
-
-    # Check if there are users with images
-    if not userlist:
-        print("No users found for training.")
-        return
-
-    for user in userlist:
-        for imgname in os.listdir(f'static/faces/{user}'):
-            img = cv2.imread(f'static/faces/{user}/{imgname}')
-            resized_face = cv2.resize(img, (50, 50))
-            faces.append(resized_face.ravel())
-            labels.append(user)
-
-    faces = np.array(faces)
-
-    # Check if the faces array is not empty
-    if faces.size == 0:
-        print("No faces found for training.")
-        return
-
-    knn = KNeighborsClassifier(n_neighbors=5)
-    knn.fit(faces, labels)
-    joblib.dump(knn, 'static/face_recognition_model.pkl')
-
-
-# Extract info from today's attendance file in the attendance folder
-def extract_attendance():
-    df = pd.read_csv(f'Attendance/Attendance-{datetoday}.csv')
-    names = df['Name']
-    rolls = df['Roll']
-    times = df['Time']
-    l = len(df)
-    return names, rolls, times, l
-
+    return model.predict(facearray.reshape(1, -1))[0]
 
 # Add Attendance of a specific user
 def add_attendance(name):
@@ -171,7 +66,6 @@ def add_attendance(name):
     if str(userid) not in list(df['Roll']):
         with open(f'Attendance/Attendance-{datetoday}.csv', 'a') as f:
             f.write(f'\n{username},{userid},{current_time}')
-
 
 # Streamlit app
 def main():
@@ -188,7 +82,6 @@ def main():
     elif page == "Add Student":
         add_student_page()
 
-
 def home_page():
     names, rolls, times, l = extract_attendance()
     st.write(f"## Today's Attendance ({datetoday2})")
@@ -197,28 +90,47 @@ def home_page():
 
     st.write(f"Total Registered Students: {totalreg()}")
 
-
 def take_attendance_page():
     if 'face_recognition_model.pkl' not in os.listdir('static'):
         st.warning("There is no trained model in the static folder. Please add a new face to continue.")
         return
 
-st.write("## Taking Attendance from Live Video Streaming")
+    st.write("## Taking Attendance from Live Video Streaming")
 
-webrtc_ctx = webrtc_streamer(
-    key="example",
-    video_processor_factory=FaceDetectionProcessor,
-    mode=WebRtcMode.SENDRECV,
-    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-)
+    webrtc_ctx = webrtc_streamer(
+        key="example",
+        video_processor_factory=VideoProcessor,
+        rtc_configuration=RTCConfiguration(
+            {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+        ),
+        async_transform=True,
+    )
 
+    if webrtc_ctx.video_transformer:
+        # You can access frames from the video stream here
+        while True:
+            frame = webrtc_ctx.video_transformer.recv()
+            frm = frame.to_ndarray(format="bgr24")
 
+            # Perform face detection on the frame
+            faces = face_detector.detectMultiScale(cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY), scaleFactor=1.1, minNeighbors=5)
+
+            # Draw rectangles around the detected faces
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                face = cv2.resize(frm[y:y + h, x:x + w], (50, 50))
+                identified_person = identify_face(face.reshape(1, -1))[0]
+                add_attendance(identified_person)
+                cv2.putText(frm, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
+
+            # Display the resulting frame
+            st.image(frm, channels="BGR", use_column_width=True)
 
 def add_student_page():
     st.title("Capture Images 10 various poses")
     newusername = st.text_input('Enter new username:')
     newuserid = st.text_input('Enter new user ID:')
-    userimagefolder = 'static/faces/' + newusername + '_' + 'ID:' + str(newuserid)
+    userimagefolder = 'static/faces/' + newusername + '_' +'ID:'+ str(newuserid)
 
     # Check if the user folder already exists
     if not os.path.isdir(userimagefolder):
@@ -251,7 +163,6 @@ def add_student_page():
 
     # Display success message or other relevant information
     st.success("Training complete.")
-
 
 if __name__ == "__main__":
     main()
