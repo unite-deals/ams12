@@ -85,6 +85,25 @@ def totalreg():
 # Identify face using ML model
 def identify_face(facearray):
     return model.predict(facearray.reshape(1, -1))[0]
+def train_model():
+    faces = []
+    labels = []
+    userlist = os.listdir('static/faces')
+
+    # Check if there are users with images
+    if not userlist:
+        print("No users found for training.")
+        return
+
+    for user in userlist:
+        for imgname in os.listdir(f'static/faces/{user}'):
+            img = cv2.imread(f'static/faces/{user}/{imgname}')
+            resized_face = cv2.resize(img, (50, 50))
+            faces.append(resized_face.ravel())
+            labels.append(user)
+
+    faces = np.array(faces)
+
 def extract_attendance():
     df = pd.read_csv(f'Attendance/Attendance-{datetoday}.csv')
     names = df['Name']
