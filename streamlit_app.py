@@ -51,9 +51,10 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
 model = joblib.load('static/face_recognition_model.pkl')
 def identify_face(facearray):
     return model.predict(facearray.reshape(1, -1))[0]
+
 class VideoProcessor:
     def recv(self, frame):
-		frm = frame.to_ndarray(format="bgr24")
+        frm = frame.to_ndarray(format="bgr24")
 
 		faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
