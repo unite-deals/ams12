@@ -196,19 +196,19 @@ def add_student_page():
     # Check if the user folder already exists
     if not os.path.isdir(userimagefolder):
         os.makedirs(userimagefolder)
-
-    i = 0
     image_place = st.empty()
+    i = 0
+    
     webrtc_ctx = webrtc_streamer(
     key="video-sendonly",
     mode=WebRtcMode.SENDONLY,
     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
     media_stream_constraints={"video": True},
-    video_receiver_size=10  # Set a larger receiver size, adjust as needed
+    video_receiver_size=3  # Set a larger receiver size, adjust as needed
 )
 
     try:
-        while i < 10:
+        while i < 3:
             if webrtc_ctx.video_receiver:
                 try:
                     video_frame = webrtc_ctx.video_receiver.get_frame(timeout=1)
