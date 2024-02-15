@@ -54,9 +54,12 @@ class VideoProcessor:
         self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.model = joblib.load('static/face_recognition_model.pkl')
 
-    def process_frame(self, frame):
+    def transform(self, frame):
+        # Convert the frame to numpy array
+        frm = frame.to_ndarray(format="bgr24")
+
         # Convert the frame to grayscale for face detection
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
 
         # Detect faces in the frame
         faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
@@ -65,18 +68,17 @@ class VideoProcessor:
         for (x, y, w, h) in faces:
             face = cv2.resize(gray[y:y + h, x:x + w], (50, 50))
             identified_person = self.identify_face(face.reshape(1, -1))
-            
+
             # Draw rectangle around the face
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            
+            cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
             # Display ID and Name on the frame
-            cv2.putText(frame, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
+            cv2.putText(frm, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-        return frame
+        return av.VideoFrame.from_ndarray(frm, format='bgr24')
 
-    def identify_face(self, face_array):
-        return self.model.predict(face_array)
+    
 
 # get a number of total registered users
 def totalreg():
@@ -155,28 +157,15 @@ def take_attendance_page():
 
     webrtc_ctx = webrtc_streamer(
         key="webcam",
-        video_processor_factory=VideoProcessor,
-        rtc_configuration=RTCConfiguration(
-            {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-        )
+        video_processor_factory=FaceDetectionProcessor,
+        mode=WebRtcMode.SENDRECV,
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
     )
+
     if webrtc_ctx.video_processor:
-        frame = webrtc_ctx.video_processor.process_frame(webrtc_ctx.image)
+        st.image(webrtc_ctx.video_processor.frame_out, channels="BGR", use_column_width=True)
 
-        # Convert the frame to grayscale for face detection
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Detect faces in the grayscale frame
-        faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-        # Draw rectangles around the detected faces and update attendance
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            face = cv2.resize(frame[y:y + h, x:x + w], (50, 50))
-            identified_person = identify_face(face.reshape(1, -1))[0]
-            add_attendance(identified_person)
-            cv2.putText(frame, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
-            
 def add_student_page():
     st.title("Capture Images 10 various poses")
     newusername = st.text_input('Enter new username:')
