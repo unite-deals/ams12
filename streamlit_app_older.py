@@ -6,7 +6,9 @@ from datetime import date, datetime
 from sklearn.neighbors import KNeighborsClassifier
 import pandas as pd
 import joblib
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode
+from streamlit_webrtc import WebRtcMode, webrtc_streamer
+import time
+import queue 
 
 hide_github_link_style = """
     <style>
@@ -25,14 +27,14 @@ hide_streamlit_style = """
             footer {visibility: hidden;}
             </style>
             """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
+st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 # Saving Date today in 2 different formats
 datetoday = date.today().strftime("%m_%d_%y")
 datetoday2 = date.today().strftime("%d-%B-%Y")
-
+model_path = 'static/face_recognition_model.pkl'
 # Initializing VideoCapture object to access WebCam
 face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+cap = cv2.VideoCapture(0)
 
 # If these directories don't exist, create them
 if not os.path.isdir('Attendance'):
@@ -45,31 +47,19 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
     with open(f'Attendance/Attendance-{datetoday}.csv', 'w') as f:
         f.write('Name,Roll,Time')
 
-
 class FaceDetectionProcessor(VideoProcessorBase):
     def __init__(self):
-        self.userimagefolder = None
-        self.capture_count = 0
+        self.face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-    def detect_faces(self, frame):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-        
+    def recv(self, frame):
+        img_rgb = cv2.cvtColor(frame.to_ndarray(format="bgr24"), cv2.COLOR_BGR2RGB)
+        gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+        faces = self.face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            face = cv2.resize(frame[y:y + h, x:x + w], (50, 50))
-            identified_person = identify_face(face.reshape(1, -1))[0]
-            add_attendance(identified_person)
-            cv2.putText(frame, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
+            cv2.rectangle(img_rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        return frame
-
-    def on_receive(self, frame: np.ndarray, frame_metadata: dict):
-        if self.userimagefolder is not None and self.capture_count < 10:
-            self.capture_count += 1
-            return self.detect_faces(frame)
-        return frame
-
+        return cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
 
 def set_timezone():
     current_local_time = datetime.now()
@@ -88,11 +78,9 @@ def set_timezone():
     """
     st.markdown(timezone_js, unsafe_allow_html=True)
 
-
 # get a number of total registered users
 def totalreg():
     return len(os.listdir('static/faces'))
-
 
 # extract the face from an image
 def extract_faces(img):
@@ -103,14 +91,12 @@ def extract_faces(img):
     else:
         return []
 
-
 # Identify face using ML model
 def identify_face(facearray):
     model = joblib.load('static/face_recognition_model.pkl')
     return model.predict(facearray.reshape(1, -1))
 
-
-# A function that trains the model on all the faces available in the faces folder
+# A function which trains the model on all the faces available in faces folder
 def train_model():
     faces = []
     labels = []
@@ -130,7 +116,7 @@ def train_model():
 
     faces = np.array(faces)
 
-    # Check if the faces array is not empty
+    # Check if faces array is not empty
     if faces.size == 0:
         print("No faces found for training.")
         return
@@ -139,8 +125,7 @@ def train_model():
     knn.fit(faces, labels)
     joblib.dump(knn, 'static/face_recognition_model.pkl')
 
-
-# Extract info from today's attendance file in the attendance folder
+# Extract info from today's attendance file in attendance folder
 def extract_attendance():
     df = pd.read_csv(f'Attendance/Attendance-{datetoday}.csv')
     names = df['Name']
@@ -148,7 +133,6 @@ def extract_attendance():
     times = df['Time']
     l = len(df)
     return names, rolls, times, l
-
 
 # Add Attendance of a specific user
 def add_attendance(name):
@@ -160,7 +144,6 @@ def add_attendance(name):
     if str(userid) not in list(df['Roll']):
         with open(f'Attendance/Attendance-{datetoday}.csv', 'a') as f:
             f.write(f'\n{username},{userid},{current_time}')
-
 
 # Streamlit app
 def main():
@@ -177,7 +160,6 @@ def main():
     elif page == "Add Student":
         add_student_page()
 
-
 def home_page():
     names, rolls, times, l = extract_attendance()
     st.write(f"## Today's Attendance ({datetoday2})")
@@ -185,7 +167,6 @@ def home_page():
     st.table(df_home)
 
     st.write(f"Total Registered Students: {totalreg()}")
-
 
 def take_attendance_page():
     if 'face_recognition_model.pkl' not in os.listdir('static'):
@@ -195,15 +176,20 @@ def take_attendance_page():
     st.write("## Taking Attendance from Live Video Streaming")
 
     webrtc_ctx = webrtc_streamer(
-        key="example",
-        video_processor_factory=FaceDetectionProcessor,
+        key="video",
         mode=WebRtcMode.SENDRECV,
+        video_processor_factory=FaceDetectionProcessor,
         rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
     )
+    
+    if webrtc_ctx.video_receiver:
+        st.video(webrtc_ctx.video_receiver)
+    else:
+        st.warning("Failed to create video receiver. Please check your webcam connection.")
 
 
 def add_student_page():
-    st.title("Capture Images 10 various poses")
+    st.title("Capture Images for New Student")
     newusername = st.text_input('Enter new username:')
     newuserid = st.text_input('Enter new user ID:')
     userimagefolder = 'static/faces/' + newusername + '_' + 'ID:' + str(newuserid)
@@ -211,35 +197,66 @@ def add_student_page():
     # Check if the user folder already exists
     if not os.path.isdir(userimagefolder):
         os.makedirs(userimagefolder)
-
+    image_place = st.empty()
     i = 0
+    
+    webrtc_ctx = webrtc_streamer(
+    key="video-sendonly",
+    mode=WebRtcMode.SENDONLY,
+    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+    media_stream_constraints={"video": True},
+    video_receiver_size=3  # Set a larger receiver size, adjust as needed
+)
 
-    # Capture 10 images for training using Streamlit's camera input
-    for i in range(10):
-        img_file_buffer = st.camera_input(f"Take picture {i + 1}", key=f"image_{i}")
+    try:
+        while i < 3:
+            if webrtc_ctx.video_receiver:
+                try:
+                    video_frame = webrtc_ctx.video_receiver.get_frame(timeout=1)
+                except queue.Empty:
+                    st.warning("Queue is empty. Abort.")
+                    break
 
-        if img_file_buffer is not None:
-            bytes_data = img_file_buffer.getvalue()
-            image_array = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-            faces = face_detector.detectMultiScale(image_array, scaleFactor=1.3, minNeighbors=5)
+                img_rgb = video_frame.to_ndarray(format="rgb24")
+                image_place.image(img_rgb)
+                image_array = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
 
-            for (x, y, w, h) in faces:
-                cv2.rectangle(image_array, (x, y), (x + w, y + h), (255, 0, 20), 2)
-                cv2.putText(image_array, f'Images Captured: {i + 1}/10', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                            (255, 0, 20), 2, cv2.LINE_AA)
+                # Convert the frame to grayscale
+                gray = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
 
-                # Save the captured image
-                name = f'{newusername}_{i}.jpg'
-                cv2.imwrite(os.path.join(userimagefolder, name), image_array[y:y + h, x:x + w])
+                # Detect faces in the grayscale frame
+                faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
-    st.success("Images Captured. Training the model...")
+                # Draw rectangles around the detected faces
+                for (x, y, w, h) in faces:
+                    cv2.rectangle(image_array, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.putText(image_array, f'Images Captured: {i + 1}/10', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                                (255, 0, 20), 2, cv2.LINE_AA)
+
+                    # Save the captured image
+                    name = f'{newusername}_{i}.jpg'
+                    cv2.imwrite(os.path.join(userimagefolder, name), image_array[y:y + h, x:x + w])
+
+                # Display the resulting frame
+                st.image(image_array, channels="BGR", use_column_width=True)
+
+                # Increment the counter
+                i += 1
+
+            # Sleep for a short duration to prevent capturing too quickly
+            time.sleep(1)
+
+    except Exception as e:
+        st.warning(f"An error occurred: {e}")
+
+    finally:
+        # Release the VideoCapture object
+        cap.release()
 
     # Train the model after capturing images
     train_model()
 
-    # Display success message or other relevant information
-    st.success("Training complete.")
-
-
+    st.success("Images Captured. Training the model...")
+    st.success("Training complete. New student added.")
 if __name__ == "__main__":
     main()
