@@ -51,7 +51,6 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
 model = joblib.load('static/face_recognition_model.pkl')
 
 class FaceDetectionProcessor(VideoTransformerBase):
-    class VideoProcessor(VideoProcessorBase):
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.model = joblib.load('static/face_recognition_model.pkl')
