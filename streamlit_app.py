@@ -49,40 +49,23 @@ if f'Attendance-{datetoday}.csv' not in os.listdir('Attendance'):
 
 # Load the face recognition model
 model = joblib.load('static/face_recognition_model.pkl')
+def identify_face(facearray):
+    return model.predict(facearray.reshape(1, -1))[0]
+class VideoProcessor:
+    def recv(self, frame):
+		frm = frame.to_ndarray(format="bgr24")
 
-class FaceDetectionProcessor(VideoTransformerBase):
-    def __init__(self):
-        self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-        self.model = joblib.load('static/face_recognition_model.pkl')
+		faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
-    def process_frame(self, frame):
-        # Convert the frame to grayscale for face detection
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        # Detect faces in the frame
-        faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-        # Identify and draw rectangles around the detected faces
+        # Draw rectangles around the detected faces
         for (x, y, w, h) in faces:
-            face = cv2.resize(gray[y:y + h, x:x + w], (50, 50))
-            identified_person = self.identify_face(face.reshape(1, -1))
-            
-            # Draw rectangle around the face
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            
-            # Display ID and Name on the frame
-            cv2.putText(frame, f'ID: {identified_person[1]}, Name: {identified_person[0]}', (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+            cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            face = cv2.resize(frm[y:y + h, x:x + w], (50, 50))
+            identified_person = identify_face(face.reshape(1, -1))[0]
+            add_attendance(identified_person)
+            cv2.putText(image_array_copy, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
 
-        return frame
-    def identify_face(self, face_array):
-        # Assuming you have a KNeighborsClassifier model trained and loaded
-        predicted_label = self.model.predict(face_array.reshape(1, -1))[0]
-
-        # Extract user ID and Name from the predicted label
-        user_id, user_name = predicted_label.split('_')
-
-        return user_name, user_id
+		return av.VideoFrame.from_ndarray(frm, format='bgr24')
 
     
 
@@ -155,21 +138,14 @@ def home_page():
     st.write(f"Total Registered Students: {totalreg()}")
 
 def take_attendance_page():
-    if 'face_recognition_model.pkl' not in os.listdir('static'):
-        st.warning("There is no trained model in the static folder. Please add a new face to continue.")
-        return
+    webrtc_streamer(key="key", video_processor_factory=VideoProcessor,
+				rtc_configuration=RTCConfiguration(
+					{"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]} 
 
-    st.write("## Taking Attendance from Live Video Streaming")
-
-    webrtc_ctx = webrtc_streamer(
-        key="webcam",
-        video_processor_factory=FaceDetectionProcessor,
-        mode=WebRtcMode.SENDRECV,
-        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                )
     )
 
-    if webrtc_ctx.video_processor:
-        st.image(webrtc_ctx.video_processor.process_frame, channels="BGR", use_column_width=True)
+    
 
 
 def add_student_page():
