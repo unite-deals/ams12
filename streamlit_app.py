@@ -7,6 +7,7 @@ from sklearn.neighbors import KNeighborsClassifier
 import pandas as pd
 import joblib
 from streamlit_webrtc import VideoTransformerBase, webrtc_streamer, WebRtcMode
+from streamlit_webrtc import webrtc_streamer, RTCConfiguration
 
 hide_github_link_style = """
     <style>
