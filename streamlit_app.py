@@ -84,6 +84,13 @@ def totalreg():
 # Identify face using ML model
 def identify_face(facearray):
     return model.predict(facearray.reshape(1, -1))[0]
+def extract_attendance():
+    df = pd.read_csv(f'Attendance/Attendance-{datetoday}.csv')
+    names = df['Name']
+    rolls = df['Roll']
+    times = df['Time']
+    l = len(df)
+    return names, rolls, times, l
 
 # Add Attendance of a specific user
 def add_attendance(name):
