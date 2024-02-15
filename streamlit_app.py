@@ -179,9 +179,9 @@ def take_attendance_page():
         key="video",
         mode=WebRtcMode.SENDRECV,
         video_processor_factory=FaceDetectionProcessor,
-        async_processing=True,
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
     )
-
+    
     if webrtc_ctx.video_receiver:
         st.video(webrtc_ctx.video_receiver)
     else:
