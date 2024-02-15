@@ -186,56 +186,57 @@ def take_attendance_page():
         st.image(image_array_copy, channels="BGR", use_column_width=True)
 
 def add_student_page():
-    if not os.path.exists(model_path):
-        st.warning("There is no trained model. Please add a new face to continue.")
-        return
+     st.title("Capture Images from Live Video Streaming")
 
-    st.write("## Taking Attendance from Live Video Streaming")
+    # Define the number of frames to capture for training
+    num_frames_to_capture = 10
 
-    # Get the video stream from the WebRTC streamer
-    webrtc_ctx = webrtc_streamer(
-        key="video-sendonly",
-        mode=WebRtcMode.SENDONLY,
-        rtc_configuration={"iceServers": []},
-        media_stream_constraints={"video": True},
-    )
+    # Initialize variables
+    captured_frames = 0
+    userimagefolder = None
 
-    if webrtc_ctx.video_receiver:
-        start_time = time.time()
+    # Get user information
+    newusername = st.text_input('Enter new username:')
+    newuserid = st.text_input('Enter new user ID:')
+    userimagefolder = 'static/faces/' + newusername + '_' +'ID:'+ str(newuserid)
 
-        while time.time() - start_time < 10:
-            try:
-                video_frame = webrtc_ctx.video_receiver.get_frame(timeout=1)
-            except queue.Empty:
-                st.warning("Queue is empty. Unable to get video frame.")
-                break
+    # Check if the user folder already exists
+    if not os.path.isdir(userimagefolder):
+        os.makedirs(userimagefolder)
 
-            img_rgb = video_frame.to_ndarray(format="rgb24")
-            image_array_copy = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+    while captured_frames < num_frames_to_capture:
+        # Read a frame from the video stream
+        ret, frame = cap.read()
 
-            # Convert the frame to grayscale
-            gray = cv2.cvtColor(image_array_copy, cv2.COLOR_BGR2GRAY)
+        # Convert the frame to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Detect faces in the grayscale frame
-            faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+        # Detect faces in the grayscale frame
+        faces = face_detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 
-            # Draw rectangles around the detected faces
-            for (x, y, w, h) in faces:
-                cv2.rectangle(image_array_copy, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                face = cv2.resize(image_array_copy[y:y + h, x:x + w], (50, 50))
-                identified_person = identify_face(face.reshape(1, -1))[0]
-                add_attendance(identified_person)
-                cv2.putText(image_array_copy, f'{identified_person}', (x + 6, y - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2)
+        # Draw rectangles around the detected faces
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 20), 2)
+            cv2.putText(frame, f'Frames Captured: {captured_frames + 1}/{num_frames_to_capture}', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 20), 2, cv2.LINE_AA)
 
-            # Display the resulting frame
-            st.image(image_array_copy, channels="BGR", use_column_width=True)
+            # Save the captured frame
+            name = f'{newusername}_{captured_frames}.jpg'
+            cv2.imwrite(os.path.join(userimagefolder, name), frame[y:y + h, x:x + w])
 
-        # Train the model after capturing images
-        train_model()
+        # Display the resulting frame
+        st.image(frame, channels="BGR", use_column_width=True)
 
-        st.success("Training complete.")
-        st.success("Attendance taken from live video streaming.")
-    else:
-        st.warning("Video receiver is not set. Unable to start live streaming.")
+        # Increment the captured_frames counter
+        captured_frames += 1
+
+        # Sleep for a short duration to prevent capturing too quickly
+        time.sleep(1)
+
+    st.success("Frames Captured. Training the model...")
+
+    # Train the model after capturing frames
+    train_model()
+
+    st.success("Training complete.")
 if __name__ == "__main__":
     main()
