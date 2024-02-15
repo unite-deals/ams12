@@ -200,8 +200,8 @@ def home_page():
 
 def take_attendance_page():
     if 'face_recognition_model.pkl' not in os.listdir('static'):
-    st.warning("There is no trained model in the static folder. Please add a new face to continue.")
-    return
+        st.warning("There is no trained model in the static folder. Please add a new face to continue.")
+        return
 
 st.write("## Taking Attendance from Live Video Streaming")
 
