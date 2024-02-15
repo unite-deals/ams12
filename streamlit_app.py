@@ -204,7 +204,7 @@ def add_student_page():
     if not os.path.isdir(userimagefolder):
         os.makedirs(userimagefolder)
     cap = cv2.VideoCapture(0)
-    while captured_frames < num_frames_to_capture:
+    while True:
         # Read a frame from the video stream
         ret, frame = cap.read()
 
@@ -236,7 +236,8 @@ def add_student_page():
 
         # Sleep for a short duration to prevent capturing too quickly
         time.sleep(1)
-
+        if captured_frames >= num_frames_to_capture:
+                break
     st.success("Frames Captured. Training the model...")
 
     # Train the model after capturing frames
