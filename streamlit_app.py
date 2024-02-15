@@ -55,9 +55,7 @@ def identify_face(facearray):
 class VideoProcessor:
     def recv(self, frame):
         frm = frame.to_ndarray(format="bgr24")
-
-		faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
+        faces = face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
         # Draw rectangles around the detected faces
         for (x, y, w, h) in faces:
             cv2.rectangle(frm, (x, y), (x + w, y + h), (0, 255, 0), 2)
