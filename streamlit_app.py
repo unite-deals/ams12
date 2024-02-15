@@ -119,7 +119,7 @@ def home_page():
 
     st.write(f"Total Registered Students: {totalreg()}")
 
-ddef take_attendance_page():
+def take_attendance_page():
     if 'face_recognition_model.pkl' not in os.listdir('static'):
         st.warning("There is no trained model in the static folder. Please add a new face to continue.")
         return
