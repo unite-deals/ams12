@@ -8,6 +8,8 @@ import pandas as pd
 import joblib
 from streamlit_webrtc import WebRtcMode, webrtc_streamer
 import time
+import queue 
+
 hide_github_link_style = """
     <style>
     #MainMenu {visibility: hidden;}
