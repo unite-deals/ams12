@@ -29,7 +29,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # Saving Date today in 2 different formats
 datetoday = date.today().strftime("%m_%d_%y")
 datetoday2 = date.today().strftime("%d-%B-%Y")
-
+model_path = 'static/face_recognition_model.pkl'
 # Initializing VideoCapture object to access WebCam
 face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 cap = cv2.VideoCapture(0)
