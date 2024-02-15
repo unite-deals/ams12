@@ -203,7 +203,7 @@ def add_student_page():
     # Check if the user folder already exists
     if not os.path.isdir(userimagefolder):
         os.makedirs(userimagefolder)
-
+    cap = cv2.VideoCapture(0)
     while captured_frames < num_frames_to_capture:
         # Read a frame from the video stream
         ret, frame = cap.read()
