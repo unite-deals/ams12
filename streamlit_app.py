@@ -169,7 +169,7 @@ def take_attendance_page():
     )
 
     if webrtc_ctx.video_processor:
-        st.image(webrtc_ctx.video_processor.processed_frame, channels="BGR", use_column_width=True)
+        st.image(webrtc_ctx.video_processor.process_frame, channels="BGR", use_column_width=True)
 
 
 def add_student_page():
